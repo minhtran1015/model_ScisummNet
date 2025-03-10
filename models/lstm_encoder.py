@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoModel, AutoTokenizer
 
 class LSTMEncoder(nn.Module):
@@ -37,8 +38,12 @@ class LSTMEncoder(nn.Module):
         # Generate sentence embeddings (N, 384)
         sentence_embeddings = self.get_sentence_embeddings(sentences)  
         
+        # Process each sentence separately
+        sentence_embeddings = [emb.unsqueeze(0) for emb in sentence_embeddings]  # Convert to list of tensors
+        padded_inputs = pad_sequence(sentence_embeddings, batch_first=True)  # Pad sequences
+
         # Pass through LSTM
-        lstm_output, (hn, _) = self.lstm(sentence_embeddings.unsqueeze(0))  # Add batch dimension
+        lstm_output, (hn, _) = self.lstm(padded_inputs)
 
         # Extract final hidden states
         sentence_representations = torch.cat((hn[-2], hn[-1]), dim=1) if self.lstm.bidirectional else hn[-1]
