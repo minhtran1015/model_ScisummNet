@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.utils.rnn import pad_sequence
+from transformers import AutoModel, AutoTokenizer
 
 class LSTMEncoder(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, num_layers=1, bidirectional=True):
@@ -15,22 +14,34 @@ class LSTMEncoder(nn.Module):
             batch_first=True
         )
         self.output_dim = hidden_dim * 2 if bidirectional else hidden_dim
-    
-    def forward(self, sentence_embeddings, authority_scores):
-        """
-        Encode sentences using LSTM and append authority scores.
-        :param sentence_embeddings: List of tensor embeddings (variable lengths).
-        :param authority_scores: List of authority scores (one per sentence).
-        :return: Tensor of encoded sentence representations with authority scores.
-        """
-        padded_inputs = pad_sequence(sentence_embeddings, batch_first=True)
-        packed_output, (hn, cn) = self.lstm(padded_inputs)
         
-        # Take the final hidden state
+        # Transformer-based sentence embeddings
+        self.tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+        self.embedding_model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+        
+    def get_sentence_embeddings(self, sentences):
+        """Generates sentence embeddings using a transformer model."""
+        inputs = self.tokenizer(sentences, padding=True, truncation=True, return_tensors="pt")
+
+        with torch.no_grad():
+            outputs = self.embedding_model(**inputs)
+        
+        return outputs.last_hidden_state[:, 0, :]  # (N, 384) instead of (1, 384)
+
+    def forward(self, sentences):
+        """
+        Encode sentences using LSTM.
+        :param sentences: List of sentences.
+        :return: Tensor of encoded sentence representations.
+        """
+        # Generate sentence embeddings (N, 384)
+        sentence_embeddings = self.get_sentence_embeddings(sentences)  
+        
+        # Pass through LSTM
+        lstm_output, (hn, _) = self.lstm(sentence_embeddings.unsqueeze(0))  # Add batch dimension
+
+        # Extract final hidden states
         sentence_representations = torch.cat((hn[-2], hn[-1]), dim=1) if self.lstm.bidirectional else hn[-1]
         
-        # Append authority scores as an additional feature
-        authority_scores_tensor = torch.tensor(authority_scores, dtype=torch.float32).unsqueeze(1)
-        encoded_sentences = torch.cat((sentence_representations, authority_scores_tensor), dim=1)
-        
-        return encoded_sentences
+        return sentence_representations
+
