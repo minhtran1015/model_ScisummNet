@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from models.lstm_encoder import LSTMEncoder
 from models.gcn import GCN
+from models.scorer import SentenceScorer
 
 import sys
 import os
@@ -24,6 +25,7 @@ gcn_out_dim = 64
 # Initialize models
 lstm_encoder = LSTMEncoder(embedding_dim, hidden_dim)
 gcn = GCN(hidden_dim * 2, hidden_dim, gcn_out_dim)
+sentence_scorer = SentenceScorer(gcn_out_dim)
 
 for paper_id, data in extracted_data.items():
     sentences = data["input_sentences"]
@@ -54,3 +56,8 @@ for paper_id, data in extracted_data.items():
     gcn_output = gcn(sentence_embeddings, adjacency_matrix)
     
     print(f"✅ Processed {paper_id}: GCN Output Shape ->", gcn_output.shape)
+    print(f"GCN output std: ", gcn_output.std(dim=0))
+    # Estimate salience scores
+    salience_scores = sentence_scorer(gcn_output)
+    print(f"Salience scores for {paper_id}: {salience_scores}")
+    print(f"sentence scorer projection weight: ", sentence_scorer.projection.weight)
