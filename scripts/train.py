@@ -6,7 +6,7 @@ def compute_loss(predicted_scores, target_scores):
     """
     Computes the cross-entropy loss between target salience scores and predicted scores.
     :param predicted_scores: Tensor of shape (N,), predicted salience scores
-    :param target_scores: Tensor of shape (N,), target salience scores
+    :param target_scores: Tensor of shape (N,), target salience scores (Rouge Score?)
     :return: Cross-entropy loss
     """
     loss_fn = nn.CrossEntropyLoss()
