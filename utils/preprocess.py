@@ -40,16 +40,42 @@ def extract_sentences_for_summarization():
 
         # Collect all sentences in the paper
         all_sentences = []
+        sentence_map = {}  # Maps index -> sentence text
+        index = 0
         for sec_content in sections.values():
-            all_sentences.extend([s["text"] for s in sec_content.get("sentences", [])])
+            for sent in sec_content.get("sentences", []):
+                all_sentences.append(sent["text"])
+                sentence_map[index] = sent["text"]
+                index += 1
 
-        # Ensure unique sentences
-        combined_sentences = list(set(abstract_sentences + all_sentences))
+        # Extract Cited Text Spans
+        cited_texts = []
+        if paper_id in citations_data and all_sentences:
+            vectorizer = TfidfVectorizer(stop_words="english")
+            tfidf_matrix = vectorizer.fit_transform(all_sentences)
+
+            for citation in citations_data[paper_id]:
+                cite_text = citation.get("cite_text", "").strip()
+                if not cite_text:
+                    continue
+
+                # Compute similarity
+                cite_vector = vectorizer.transform([cite_text])
+                similarities = cosine_similarity(cite_vector, tfidf_matrix)[0]
+                top_indices = np.argsort(similarities)[-2:][::-1]  # Get top 2 most similar sentences
+
+                for idx in top_indices:
+                    sent_text = sentence_map[idx]
+                    if sent_text not in cited_texts:
+                        cited_texts.append(sent_text)
+
+        # Combine abstract and cited text spans
+        combined_sentences = list(set(abstract_sentences + cited_texts))
 
         # Construct adjacency matrix
         adjacency_matrix = construct_sentence_graph(combined_sentences)
 
-        # 🚨 Ensure the adjacency matrix matches sentence count
+        # 🚨 Ensure adjacency matrix matches sentence count
         if len(combined_sentences) != len(adjacency_matrix):
             print(f"🚨 Adjacency matrix mismatch in {paper_id}: {len(combined_sentences)} sentences vs {len(adjacency_matrix)} nodes")
             continue  # Skip this entry
