@@ -8,22 +8,17 @@ from models.scorer import SentenceScorer
 import sys
 import os
 
-# Add project root directory to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Rest of your code remains the same
-
-# Load extracted sentences
 with open("data/processed/extracted_sentences.json", "r") as f:
     extracted_data = json.load(f)
 
-# Model parameters
-embedding_dim = 384  # Transformer sentence embedding dimension
+embedding_dim = 300
 hidden_dim = 128
 gcn_out_dim = 64
+glove_path = "glove/glove.6B.300d.txt"
 
-# Initialize models
-lstm_encoder = LSTMEncoder(embedding_dim, hidden_dim)
+lstm_encoder = LSTMEncoder(embedding_dim, hidden_dim, glove_path)
 gcn = GCN(hidden_dim * 2, hidden_dim, gcn_out_dim)
 sentence_scorer = SentenceScorer(gcn_out_dim)
 
