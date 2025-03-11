@@ -1,4 +1,4 @@
-import rouge_score as rouge_scorer
+from rouge_score.rouge_scorer import RougeScorer
 import torch
 import numpy as np
 
@@ -11,7 +11,7 @@ def compute_target_scores(sentences, gold_summary):
     :param gold_summary: Gold reference summary.
     :return: Torch tensor of rescaled target scores (probability distribution).
     """
-    scorer = rouge_scorer.RougeScorer(["rouge1", "rouge2"], use_stemmer=True)
+    scorer = RougeScorer(["rouge1", "rouge2"], use_stemmer=True)
     scores = []
     
     for sentence in sentences:
@@ -24,8 +24,7 @@ def compute_target_scores(sentences, gold_summary):
     
     # Avoid division by zero by adding a small constant if all scores are zero
     if np.sum(scores) == 0:
-        scores += 1e-8  
-
+        scores += 1e-8
+        
     normalized_scores = scores / np.sum(scores)  # Rescale to probability distribution
-
     return torch.tensor(normalized_scores, dtype=torch.float32)
