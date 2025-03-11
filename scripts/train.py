@@ -14,7 +14,7 @@ from utils.get_data import (
     get_label_data
 )
 
-# Hyperparam
+# Hyperparams
 learning_rate = 0.003
 epochs = 10
 batch_size = 32
@@ -49,7 +49,7 @@ def _get_gold_summary(paper_id):
 
 extract_sentences_for_summarization()
 
-# Training loop modified to be more stable
+# Training loop
 for epoch in range(epochs):
     lstm_encoder.train()
     gcn.train()
@@ -64,7 +64,7 @@ for epoch in range(epochs):
         if not sentences:
             continue
 
-        optimizer.zero_grad()  # Important: zero gradients for each sample
+        optimizer.zero_grad() 
             
         adj_matrix = torch.tensor(data["adjacency_matrix"], dtype=torch.float32).to(device)
         gold_summary = _get_gold_summary(paper_id)
@@ -84,7 +84,6 @@ for epoch in range(epochs):
             print(f"⚠️ Skipping sample {paper_id} due to NaN/Inf loss")
             continue
 
-        # No scaling - direct backward
         loss.backward()
         
         # Strong gradient clipping
