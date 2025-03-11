@@ -4,8 +4,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # File paths
-DOCS_FILE = "data/raw/test_docs_v5.json"
-CITATIONS_FILE = "data/raw/test_citations.json"
+DOCS_FILE = "data/raw/train_docs_v2.json"
+CITATIONS_FILE = "data/raw/train_citations.json"
 OUTPUT_FILE = "data/processed/extracted_sentences.json"
 
 def construct_sentence_graph(sentences):
