@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pad_sequence
-from transformers import AutoModel, AutoTokenizer
+import numpy as np
+import torch.nn.utils.rnn as rnn_utils
 
 class LSTMEncoder(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, num_layers=1, bidirectional=True):
+    def __init__(self, embedding_dim, hidden_dim, glove_path, num_layers=1, bidirectional=True):
         super(LSTMEncoder, self).__init__()
         self.hidden_dim = hidden_dim
         self.lstm = nn.LSTM(
@@ -16,37 +16,39 @@ class LSTMEncoder(nn.Module):
         )
         self.output_dim = hidden_dim * 2 if bidirectional else hidden_dim
         
-        # Transformer-based sentence embeddings
-        self.tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
-        self.embedding_model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
-        
-    def get_sentence_embeddings(self, sentences):
-        """Generates sentence embeddings using a transformer model."""
-        inputs = self.tokenizer(sentences, padding=True, truncation=True, return_tensors="pt")
-
-        with torch.no_grad():
-            outputs = self.embedding_model(**inputs)
-        
-        return outputs.last_hidden_state[:, 0, :]  # (N, 384) instead of (1, 384)
-
+        # Load GloVe embeddings
+        self.glove_embeddings = self.load_glove_embeddings(glove_path)
+        self.embedding_dim = embedding_dim
+        self.device = torch.device("cpu")  # Default device is CPU
+    
+    def load_glove_embeddings(self, file_path):
+        embeddings_index = {}
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                values = line.strip().split()
+                word = values[0]
+                vector = np.asarray(values[1:], dtype="float32")
+                embeddings_index[word] = vector
+        return embeddings_index
+    
+    def sentence_to_glove_embedding(self, sentence):
+        words = sentence.lower().split()
+        vectors = [self.glove_embeddings[word] for word in words if word in self.glove_embeddings]
+        if len(vectors) == 0:
+            return torch.zeros(self.embedding_dim, device=self.device) 
+        return torch.tensor(np.mean(vectors, axis=0), dtype=torch.float32, device=self.device)
+    
     def forward(self, sentences):
         """
-        Encode sentences using LSTM.
+        Encode sentences using GloVe embeddings and LSTM.
         :param sentences: List of sentences.
         :return: Tensor of encoded sentence representations.
         """
-        # Generate sentence embeddings (N, 384)
-        sentence_embeddings = self.get_sentence_embeddings(sentences)  
+        sentence_embeddings = [self.sentence_to_glove_embedding(sent) for sent in sentences]
+        sentence_embeddings = rnn_utils.pad_sequence(sentence_embeddings, batch_first=True)  # Pad sequences
         
-        # Process each sentence separately
-        sentence_embeddings = [emb.unsqueeze(0) for emb in sentence_embeddings]  # Convert to list of tensors
-        padded_inputs = pad_sequence(sentence_embeddings, batch_first=True)  # Pad sequences
-
-        # Pass through LSTM
-        lstm_output, (hn, _) = self.lstm(padded_inputs)
-
-        # Extract final hidden states
+        packed_output, (hn, cn) = self.lstm(sentence_embeddings.unsqueeze(1))
+        
         sentence_representations = torch.cat((hn[-2], hn[-1]), dim=1) if self.lstm.bidirectional else hn[-1]
         
         return sentence_representations
-
