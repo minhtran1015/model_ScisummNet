@@ -180,7 +180,7 @@ for epoch in range(epochs):
     print(f"Validation Loss: {val_loss:.4f}")
     
     # Update learning rate based on validation loss
-    scheduler.step(val_loss)
+    scheduler.step()
     
     # Early stopping check
     if val_loss < best_val_loss:
