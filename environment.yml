@@ -288,6 +288,7 @@ dependencies:
   - pip:
       - accelerate==1.4.0
       - evaluate==0.4.3
+      - notebook==7.3.2
       - psutil==7.0.0
       - sympy==1.13.1
       - torch-cluster==1.6.3
