@@ -83,7 +83,7 @@ def generate_summary(abstract, cited_text_spans, lstm_encoder, gcn, sentence_sco
     summary = hybrid_2(abstract, cited_text_spans, salience_scores, length_limit)
     return summary
 
-def summarize_paper(paper_id=None, abstract=None, cited_text_spans=None, length_limit=250):
+def summarize_paper(paper_id=None, abstract=None, cited_text_spans=None, length_limit=150):
     lstm_encoder, gcn, sentence_scorer, device = load_models()
     
     if paper_id:

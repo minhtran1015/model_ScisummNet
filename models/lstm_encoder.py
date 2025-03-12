@@ -16,10 +16,9 @@ class LSTMEncoder(nn.Module):
         )
         self.output_dim = hidden_dim * 2 if bidirectional else hidden_dim
         
-        # Load GloVe embeddings
         self.glove_embeddings = self.load_glove_embeddings(glove_path)
         self.embedding_dim = embedding_dim
-        self.device = torch.device("cpu")  # Default device is CPU
+        self.device = torch.device("cpu")
     
     def load_glove_embeddings(self, file_path):
         embeddings_index = {}
@@ -41,11 +40,13 @@ class LSTMEncoder(nn.Module):
     def forward(self, sentences):
         """
         Encode sentences using GloVe embeddings and LSTM.
-        :param sentences: List of sentences.
-        :return: Tensor of encoded sentence representations.
+        Args:
+            sentences: List of sentences.
+        Returns:
+            sentence_representations: Tensor of encoded sentence representations.
         """
         sentence_embeddings = [self.sentence_to_glove_embedding(sent) for sent in sentences]
-        sentence_embeddings = rnn_utils.pad_sequence(sentence_embeddings, batch_first=True)  # Pad sequences
+        sentence_embeddings = rnn_utils.pad_sequence(sentence_embeddings, batch_first=True)
         
         packed_output, (hn, cn) = self.lstm(sentence_embeddings.unsqueeze(1))
         
