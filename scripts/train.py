@@ -27,12 +27,12 @@ patience = 3           # Early stopping patience
 val_ratio = 0.1        # 10% for validation
 
 # Model dimensions
-embedding_dim = 300
+embedding_dim = 100
 hidden_dim = 256
 gcn_out_dim = 128
 
 # Init models
-lstm_encoder = LSTMEncoder(embedding_dim, hidden_dim, "glove/glove.6B.300d.txt")
+lstm_encoder = LSTMEncoder(embedding_dim, hidden_dim, "glove/glove.6B.100d.txt")
 gcn = GCN(hidden_dim * 2, hidden_dim, gcn_out_dim)
 sentence_scorer = SentenceScorer(gcn_out_dim)
 
