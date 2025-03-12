@@ -19,36 +19,37 @@ from utils.get_data import (
 # Create results directory
 os.makedirs("results", exist_ok=True)
 
-# Hyperparams
-learning_rate = 0.001  # Reduced from 0.003
-epochs = 20            # Increased to allow for early stopping
-batch_size = 32
-patience = 3           # Early stopping patience
-val_ratio = 0.1        # 10% for validation
+# Hyperparams - MODIFIED to match paper
+learning_rate = 0.001      # Same as paper
+epochs = 50                # Increased to allow for early stopping
+batch_size = 5             # Changed from 32 to 5 per paper
+patience = 5               # Early stopping patience
+val_ratio = 0.1            # 10% for validation
+dropout_rate = 0.5         # Changed from 0.2 to 0.5 per paper
 
-# Model dimensions
-embedding_dim = 100
-hidden_dim = 256
-gcn_out_dim = 128
+# Model dimensions - MODIFIED to match paper
+embedding_dim = 100        # Same as paper (100d GloVe)
+hidden_dim = 200           # Changed from 256 to 200 per paper
+gcn_out_dim = 201          # Changed from 128 to 201 per paper
 
 # Init models
 lstm_encoder = LSTMEncoder(embedding_dim, hidden_dim, "glove/glove.6B.100d.txt")
-gcn = GCN(hidden_dim * 2, hidden_dim, gcn_out_dim)
+gcn = GCN(hidden_dim * 2, hidden_dim, gcn_out_dim, num_layers=2)  # Explicitly set 2 layers
 sentence_scorer = SentenceScorer(gcn_out_dim)
 
-# Loss and optim with weight decay
+# Loss and optim - MODIFIED to use standard Adam without weight decay
 criterion = nn.KLDivLoss(reduction="batchmean")
-optimizer = optim.AdamW(
+optimizer = optim.Adam(                # Changed from AdamW to Adam
     list(lstm_encoder.parameters())
     + list(gcn.parameters())
     + list(sentence_scorer.parameters()),
-    lr=learning_rate,
-    weight_decay=0.01  # Added weight decay
+    lr=learning_rate
+    # Removed weight decay
 )
 
 # Learning rate scheduler
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-    optimizer, T_max=5, eta_min=learning_rate/10
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='min', factor=0.5, patience=2
 )
 
 # MPS backend config
@@ -93,11 +94,9 @@ def validate():
             gold_summary = _get_gold_summary(paper_id)
             target_scores = compute_target_scores(sentences, gold_summary).to(device)
             
-            # Forward pass
+            # Forward pass - with dropout disabled in eval mode
             sentence_embeddings = lstm_encoder(sentences)
-            sentence_embeddings = torch.nn.functional.dropout(sentence_embeddings, p=0.2, training=True)
             gcn_output = gcn(sentence_embeddings, adj_matrix)
-            gcn_output = torch.nn.functional.dropout(gcn_output, p=0.2, training=True)
             scores = sentence_scorer(gcn_output)
             estimated_scores = torch.log_softmax(scores, dim=0)
             
@@ -140,9 +139,11 @@ for epoch in range(epochs):
         gold_summary = _get_gold_summary(paper_id)
         target_scores = compute_target_scores(sentences, gold_summary).to(device)
 
-        # Forward pass
+        # Forward pass with dropout applied at each stage per paper
         sentence_embeddings = lstm_encoder(sentences) 
+        sentence_embeddings = torch.nn.functional.dropout(sentence_embeddings, p=dropout_rate, training=True)
         gcn_output = gcn(sentence_embeddings, adj_matrix)
+        gcn_output = torch.nn.functional.dropout(gcn_output, p=dropout_rate, training=True)
         scores = sentence_scorer(gcn_output)
         estimated_scores = torch.log_softmax(scores, dim=0)
 
@@ -156,12 +157,12 @@ for epoch in range(epochs):
 
         loss.backward()
         
-        # Gradient clipping
+        # Gradient clipping - MODIFIED to match paper
         clip_grad_norm_(
             list(lstm_encoder.parameters()) + 
             list(gcn.parameters()) + 
             list(sentence_scorer.parameters()), 
-            max_norm=0.5  # Increased from 0.1 for less aggressive clipping
+            max_norm=2.0  # Changed from 0.5 to 2.0 per paper
         )
         
         optimizer.step()
@@ -180,7 +181,7 @@ for epoch in range(epochs):
     print(f"Validation Loss: {val_loss:.4f}")
     
     # Update learning rate based on validation loss
-    scheduler.step()
+    scheduler.step(val_loss)
     
     # Early stopping check
     if val_loss < best_val_loss:
